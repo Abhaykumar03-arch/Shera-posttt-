@@ -1,19 +1,20 @@
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 import asyncio
-from time import time
 from info import *
 from utils import *
+from time import time
 from plugins.generate import database
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-# Utility to send message in chunks
-async def send_message_in_chunks(client, chat_id, text, reply_markup=None):
+# Cache to temporarily store the search results for each request
+search_results_cache = {}
+
+async def send_message_in_chunks(client, chat_id, text):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True, reply_markup=reply_markup)
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
         asyncio.create_task(delete_after_delay(msg, 1800))
 
-# Utility to delete messages after a delay
 async def delete_after_delay(message: Message, delay):
     await asyncio.sleep(delay)
     try:
@@ -21,7 +22,6 @@ async def delete_after_delay(message: Message, delay):
     except:
         pass
 
-# Handle searching for messages and adding forward feature
 @Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
 async def search(bot, message):
     vj = database.find_one({"chat_id": ADMIN})
@@ -43,7 +43,7 @@ async def search(bot, message):
         return
 
     query = message.text
-    head = f"<u>⭕ Here are the results {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
+    head = f"<u>⭕ Here is the results {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
     results = ""
 
     try:
@@ -57,12 +57,6 @@ async def search(bot, message):
         if not results:
             # No results found in the channels, search IMDB
             movies = await search_imdb(query)
-            if not movies:
-                # If no movies found, send a reply to the requester
-                await message.reply("🔺 Sorry for the inconvenience, we don't have your requested movie. 🔻", disable_web_page_preview=True)
-                return
-
-            # Send possible movie suggestions if found
             buttons = []
             for movie in movies:
                 buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
@@ -73,37 +67,11 @@ async def search(bot, message):
                 disable_web_page_preview=True  # Disable the web preview for the image link
             )
         else:
-            # Send results along with forward button
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔁 Forward this to Admin", callback_data="forward_to_admin")]
-            ])
-            # Reply to the user with the message: "Hey buddy, I found this result for our request!"
-            await send_message_in_chunks(bot, message.chat.id, head + "Hey buddy, I have found this result for our request! 👇\n\n" + results + "\n\n", reply_markup=keyboard)
-
+            await send_message_in_chunks(bot, message.chat.id, head + results)
     except Exception as e:
         print(f"Error in search function: {e}")
         pass
 
-# Handle callback when "forward_to_admin" is clicked
-@Client.on_callback_query(filters.regex(r"^forward_to_admin"))
-async def forward_to_admin(bot, update):
-    clicked = update.from_user.id
-    message_to_forward = update.message.reply_to_message
-
-    if message_to_forward is None:
-        return await update.answer("Please reply to a message to forward it.", show_alert=True)
-
-    admin = (await get_group(update.message.chat.id))["user_id"]
-    text_to_forward = message_to_forward.text or message_to_forward.caption
-
-    # Forward the message content to the admin
-    try:
-        await bot.forward_messages(chat_id=admin, from_chat_id=update.message.chat.id, message_ids=message_to_forward.message_id)
-        await update.answer("✅ Forwarded to Admin.", show_alert=True)
-    except Exception as e:
-        await update.answer(f"❌ Error forwarding the message: {str(e)}", show_alert=True)
-
-# Handle recheck callback for movies
 @Client.on_callback_query(filters.regex(r"^recheck"))
 async def recheck(bot, update):
     vj = database.find_one({"chat_id": ADMIN})
@@ -138,9 +106,8 @@ async def recheck(bot, update):
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
-            # If no results found after recheck, return a custom message
             return await update.message.edit(
-                "🔺 Sorry for the inconvenience, we don't have your requested movie. 🔻",
+                "🔺 Still no results found! Please Request To Group Admin 🔻",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
@@ -149,7 +116,6 @@ async def recheck(bot, update):
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
 
-# Handle requests to admin (when recheck fails)
 @Client.on_callback_query(filters.regex(r"^request"))
 async def request(bot, update):
     clicked = update.from_user.id
@@ -174,14 +140,37 @@ async def request(bot, update):
         quote_text = f"\n\n<quote>{quoted_message.text or quoted_message.caption}</quote>"
         text += quote_text
 
-    # Send the request to the admin
+    # Save the results in cache for later retrieval
+    search_results_cache[update.message.message_id] = {
+        'user_id': typed,
+        'search_results': text
+    }
+
     await bot.send_message(chat_id=admin, text=text, disable_web_page_preview=True)
-
-    # Notify the requester that the request was sent to the admin, with a quote of their message
-    reply_text = f"✅ Your request has been successfully sent to the admin! Here's the message you requested:\n\n<quote>{update.message.reply_to_message.text or update.message.reply_to_message.caption}</quote>"
-    
-    await bot.send_message(chat_id=update.message.chat.id, text=reply_text, disable_web_page_preview=True)
-
-    # Acknowledge the callback query and delete the original message after 60 seconds
     await update.answer("✅ Request Sent To Admin", show_alert=True)
     await update.message.delete(60)
+
+    # Send an initial reply to the user telling them the request is sent
+    await update.message.reply(
+        "🔺 Your request has been sent to the admin. Please wait for the results. 🔻"
+    )
+
+# Callback to send search results back to user after admin processes the request
+@Client.on_callback_query(filters.regex(r"^send_results"))
+async def send_results(bot, update):
+    clicked = update.from_user.id
+    msg_id = update.data.split("_")[1]
+
+    # Retrieve the cached search results for the message ID
+    if msg_id in search_results_cache:
+        user_id = search_results_cache[msg_id]['user_id']
+        search_results = search_results_cache[msg_id]['search_results']
+
+        if clicked != user_id:
+            return await update.answer("This isn't your request! 👀", show_alert=True)
+
+        # Send the results back to the user
+        await bot.send_message(user_id, f"🔎 Here are the results for your search:\n\n{search_results}")
+        await update.answer("✅ Results sent back to you!", show_alert=True)
+    else:
+        await update.answer("❌ No results found for your request.", show_alert=True)
