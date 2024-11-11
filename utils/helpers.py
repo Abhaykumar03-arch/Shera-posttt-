@@ -49,6 +49,7 @@ async def get_users():
     list = await cursor.to_list(length=int(count))
     return count, list
 
+
 async def update_group(id, new_data):
     data = {"_id":id}
     new_value = {"$set": new_data}
