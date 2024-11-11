@@ -63,21 +63,21 @@ async def delete_after_delay(message: Message, delay):
 async def search(bot, message):
     vj = database.find_one({"chat_id": ADMIN})
     if vj is None:
-        return await message.reply("**Contact Admin Then Say To Login In Bot.**")
+        return await message.reply("**Contact Admin Then Say To Login In Bot.**")  # Indent this line
 
     User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
 
     f_sub = await force_sub(bot, message)
     if f_sub is False:
-        return
+        return  # Indent this line correctly
 
     channels = (await get_group(message.chat.id))["channels"]
     if not channels:
-        return
+        return  # Indent this line correctly
 
     if message.text.startswith("/"):
-        return
+        return  # Indent this line correctly
 
     query = message.text
     head = f"<u>⭕ Here is the results {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
