@@ -1,10 +1,10 @@
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 import asyncio
-from time import time
 from info import *
 from utils import *
+from time import time
 from plugins.generate import database
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 async def send_message_in_chunks(client, chat_id, text):
     max_length = 4096  # Maximum length of a message
@@ -50,70 +50,6 @@ async def search(bot, message):
                 if name in results:
                     continue
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
-                
-                # Adding a forward button to the message
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Forward to User", callback_data=f"forward_{msg.message_id}_{channel}")]
-                ])
-
-                # Send the search result along with the forward button
-                await bot.send_message(
-                    chat_id=message.chat.id,
-                    text=f"{head}{results}",
-                    reply_markup=keyboard
-                )
-    except Exception as e:
-        print(f"Error: {e}")
-
-@Client.on_callback_query(filters.regex(r"^forward_"))
-async def forward_button_handler(bot, callback_query):
-    # Get message details from callback data
-    data = callback_query.data.split("_")
-    message_id = int(data[1])
-    channel = data[2]
-
-    # Extract chat_id of the requester
-    user_id = callback_query.from_user.id
-    
-    try:
-        # Fetch the message from the channel
-        message_to_forward = await bot.get_messages(chat_id=channel, message_ids=message_id)
-
-        # Ask the user to forward it to a target chat (could be a specific chat or direct messages)
-        await bot.send_message(
-            user_id,
-            text="Please choose a chat to forward the message to:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Forward to This Chat", callback_data=f"forward_to_{message_id}_{channel}_this")]
-            ])
-        )
-
-    except Exception as e:
-        await bot.answer_callback_query(callback_query.id, text="Error fetching message.", show_alert=True)
-        print(f"Error: {e}")
-
-@Client.on_callback_query(filters.regex(r"^forward_to_"))
-async def forward_to_handler(bot, callback_query):
-    data = callback_query.data.split("_")
-    message_id = int(data[1])
-    channel = data[2]
-    action = data[3]
-
-    user_id = callback_query.from_user.id
-    try:
-        # Fetch the message again from the channel
-        message_to_forward = await bot.get_messages(chat_id=channel, message_ids=message_id)
-
-        # Forward the message based on user action
-        if action == "this":
-            await bot.forward_messages(chat_id=user_id, from_chat_id=channel, message_ids=message_id)
-            await bot.send_message(user_id, "Message forwarded successfully.")
-        else:
-            await bot.send_message(user_id, "Invalid action.")
-    except Exception as e:
-        await bot.send_message(user_id, "Error forwarding message.")
-        print(f"Error: {e}")
-
 
         if not results:
             # No results found in the channels, search IMDB
