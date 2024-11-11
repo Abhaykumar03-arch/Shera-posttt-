@@ -82,12 +82,15 @@ async def search_imdb(query):
 
 async def force_sub(bot, message):
     group = await get_group(message.chat.id)
-    f_sub = group["f_sub"]
-    admin = group["user_id"]
-    if f_sub==False:
-       return True
+    if group is None:
+        return False  # Return False or handle the error appropriately.
+    
+    f_sub = group.get("f_sub", False)
+    admin = group.get("user_id")
+    if not f_sub:
+        return True
     if message.from_user is None:
-       return True 
+        return True 
     try:
        f_link = (await bot.get_chat(f_sub)).invite_link
        member = await bot.get_chat_member(f_sub, message.from_user.id)
