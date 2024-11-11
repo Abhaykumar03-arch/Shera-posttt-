@@ -99,6 +99,7 @@ async def force_sub(bot, message):
         return True
     if message.from_user is None:
         return True 
+
     try:
        f_link = (await bot.get_chat(f_sub)).invite_link
        member = await bot.get_chat_member(f_sub, message.from_user.id)
