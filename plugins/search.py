@@ -38,6 +38,42 @@ async def search(bot, message):
 
     channels = (await get_group(message.chat.id))["channels"]
     if not channels:
+import asyncio
+from info import *
+from utils import *
+from time import time 
+from plugins.generate import database
+from pyrogram import Client, filters 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message 
+
+async def send_message_in_chunks(client, chat_id, text):
+    max_length = 4096  # Maximum length of a message
+    for i in range(0, len(text), max_length):
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
+        asyncio.create_task(delete_after_delay(msg, 1800))
+
+async def delete_after_delay(message: Message, delay):
+    await asyncio.sleep(delay)
+    try:
+        await message.delete()
+    except:
+        pass
+
+@Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
+async def search(bot, message):
+    vj = database.find_one({"chat_id": ADMIN})
+    if vj is None:
+        return await message.reply("**Contact Admin Then Say To Login In Bot.**")
+
+    User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
+    await User.connect()
+
+    f_sub = await force_sub(bot, message)
+    if f_sub is False:
+        return
+
+    channels = (await get_group(message.chat.id))["channels"]
+    if not channels:
         return
 
     if message.text.startswith("/"):
@@ -64,7 +100,8 @@ async def search(bot, message):
             msg = await message.reply_photo(
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
-                reply_markup=InlineKeyboardMarkup(buttons)
+                reply_markup=InlineKeyboardMarkup(buttons),
+                disable_web_page_preview=True  # Disable the web preview for the image link
             )
         else:
             await send_message_in_chunks(bot, message.chat.id, head + results)
@@ -108,7 +145,8 @@ async def recheck(bot, update):
         if not results:
             return await update.message.edit(
                 "🔺 Still no results found! Please Request To Group Admin 🔻",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]]),
+                disable_web_page_preview=True  # Disable web preview for the link button
             )
 
         await send_message_in_chunks(bot, update.message.chat.id, head + results)
@@ -140,6 +178,6 @@ async def request(bot, update):
         quote_text = f"\n\n<quote>{quoted_message.text or quoted_message.caption}</quote>"
         text += quote_text
 
-    await bot.send_message(chat_id=admin, text=text, disable_web_page_preview=True)
+    await bot.send_message(chat_id=admin, text=text, disable_web_page_preview=True)  # Disable web page preview for the admin message
     await update.answer("✅ Request Sent To Admin", show_alert=True)
     await update.message.delete(60)
