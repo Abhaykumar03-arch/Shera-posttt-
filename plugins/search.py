@@ -174,6 +174,14 @@ async def request(bot, update):
         quote_text = f"\n\n<quote>{quoted_message.text or quoted_message.caption}</quote>"
         text += quote_text
 
+    # Send the request to the admin
     await bot.send_message(chat_id=admin, text=text, disable_web_page_preview=True)
+
+    # Notify the requester that the request was sent to the admin, with a quote of their message
+    reply_text = f"✅ Your request has been successfully sent to the admin! Here's the message you requested:\n\n<quote>{update.message.reply_to_message.text or update.message.reply_to_message.caption}</quote>"
+    
+    await bot.send_message(chat_id=update.message.chat.id, text=reply_text, disable_web_page_preview=True)
+
+    # Acknowledge the callback query and delete the original message after 60 seconds
     await update.answer("✅ Request Sent To Admin", show_alert=True)
     await update.message.delete(60)
