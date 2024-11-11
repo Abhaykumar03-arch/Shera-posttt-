@@ -1,19 +1,17 @@
 import asyncio
 from info import *
 from utils import *
-from time import time
+from time import time 
 from plugins.generate import database
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
-
-# Cache to temporarily store the search results for each request
-search_results_cache = {}
+from pyrogram import Client, filters 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message 
 
 async def send_message_in_chunks(client, chat_id, text):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length])
         asyncio.create_task(delete_after_delay(msg, 1800))
+
 
 async def delete_after_delay(message: Message, delay):
     await asyncio.sleep(delay)
@@ -25,68 +23,68 @@ async def delete_after_delay(message: Message, delay):
 @Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
 async def search(bot, message):
     vj = database.find_one({"chat_id": ADMIN})
-    if vj is None:
+    if vj == None:
         return await message.reply("**Contact Admin Then Say To Login In Bot.**")
-
+    
     User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
-
+    
     f_sub = await force_sub(bot, message)
-    if f_sub is False:
+    if f_sub == False:
         return
-
+    
     channels = (await get_group(message.chat.id))["channels"]
     if not channels:
         return
-
+    
     if message.text.startswith("/"):
         return
-
-    query = message.text
-    head = f"<u>⭕ Here is the results {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
+    
+    query = message.text 
+    head = f"<u>⭕ Here is the results {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@VJ_Botz ❗</I></b>\n\n"
     results = ""
-
+    
     try:
         for channel in channels:
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue
-                results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
-
+                    continue 
+                results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"                                                      
+        
         if not results:
-            # No results found in the channels, search IMDB
+            # Fetch IMDb results if no results found
             movies = await search_imdb(query)
             buttons = []
-            for movie in movies:
+            for movie in movies: 
                 buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
-            msg = await message.reply_photo(
-                photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
-                caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
-                reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True  # Disable the web preview for the image link
+            
+            # Send message with buttons (no image preview)
+            msg = await message.reply_text(
+                text="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>", 
+                reply_markup=InlineKeyboardMarkup(buttons)
             )
         else:
             await send_message_in_chunks(bot, message.chat.id, head + results)
     except Exception as e:
-        print(f"Error in search function: {e}")
         pass
+
 
 @Client.on_callback_query(filters.regex(r"^recheck"))
 async def recheck(bot, update):
     vj = database.find_one({"chat_id": ADMIN})
     User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
-    if vj is None:
+    
+    if vj == None:
         return await update.message.edit("**Contact Admin Then Say To Login In Bot.**")
-
+    
     await User.connect()
+    
     clicked = update.from_user.id
-
-    try:
+    try:      
         typed = update.message.reply_to_message.from_user.id
-    except AttributeError:
-        return await update.message.delete()
-
+    except:
+        return await update.message.delete(2)       
     if clicked != typed:
         return await update.answer("That's not for you! 👀", show_alert=True)
 
@@ -94,37 +92,42 @@ async def recheck(bot, update):
     id = update.data.split("_")[-1]
     query = await search_imdb(id)
     channels = (await get_group(update.message.chat.id))["channels"]
-    head = "<u>⭕ I Have Searched Movie With Wrong Spelling But Take care next time 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
+    
+    head = "<u>⭕ I Have Searched Movie With Wrong Spelling But Take care next time 👇\n\n💢 Powered By </u> <b><I>@VJ_Botz ❗</I></b>\n\n"
     results = ""
-
+    
     try:
         for channel in channels:
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue
+                    continue 
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
-
+        
         if not results:
             return await update.message.edit(
-                "🔺 Still no results found! Please Request To Group Admin 🔻",
+                "🔺 Still no results found! Please Request To Group Admin 🔻", 
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
-
+        
         await send_message_in_chunks(bot, update.message.chat.id, head + results)
-
+        
+        # Send the search results back to the user who requested the action
+        await update.message.reply_text(
+            text=f"🔍 Here are the results for your request:\n\n{head + results}",
+            disable_web_page_preview=True
+        )
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
+
 
 @Client.on_callback_query(filters.regex(r"^request"))
 async def request(bot, update):
     clicked = update.from_user.id
-
-    try:
+    try:      
         typed = update.message.reply_to_message.from_user.id
-    except AttributeError:
-        return await update.message.delete()
-
+    except:
+        return await update.message.delete()       
     if clicked != typed:
         return await update.answer("That's not for you! 👀", show_alert=True)
 
@@ -133,44 +136,12 @@ async def request(bot, update):
     name = await search_imdb(id)
     url = f"https://www.imdb.com/title/tt{id}"
     text = f"#RequestFromYourGroup\n\nName: {name}\nIMDb: {url}"
-
-    # Add quote feature: quote the message that is being replied to
-    if update.message.reply_to_message:
-        quoted_message = update.message.reply_to_message
-        quote_text = f"\n\n<quote>{quoted_message.text or quoted_message.caption}</quote>"
-        text += quote_text
-
-    # Save the results in cache for later retrieval
-    search_results_cache[update.message.message_id] = {
-        'user_id': typed,
-        'search_results': text
-    }
-
+    
+    # Send the request to admin
     await bot.send_message(chat_id=admin, text=text, disable_web_page_preview=True)
+    
+    # Send confirmation back to the requester
     await update.answer("✅ Request Sent To Admin", show_alert=True)
+    
+    # Remove the previous message from the user (optional)
     await update.message.delete(60)
-
-    # Send an initial reply to the user telling them the request is sent
-    await update.message.reply(
-        "🔺 Your request has been sent to the admin. Please wait for the results. 🔻"
-    )
-
-# Callback to send search results back to user after admin processes the request
-@Client.on_callback_query(filters.regex(r"^send_results"))
-async def send_results(bot, update):
-    clicked = update.from_user.id
-    msg_id = update.data.split("_")[1]
-
-    # Retrieve the cached search results for the message ID
-    if msg_id in search_results_cache:
-        user_id = search_results_cache[msg_id]['user_id']
-        search_results = search_results_cache[msg_id]['search_results']
-
-        if clicked != user_id:
-            return await update.answer("This isn't your request! 👀", show_alert=True)
-
-        # Send the results back to the user
-        await bot.send_message(user_id, f"🔎 Here are the results for your search:\n\n{search_results}")
-        await update.answer("✅ Results sent back to you!", show_alert=True)
-    else:
-        await update.answer("❌ No results found for your request.", show_alert=True)
