@@ -57,6 +57,12 @@ async def search(bot, message):
         if not results:
             # No results found in the channels, search IMDB
             movies = await search_imdb(query)
+            if not movies:
+                # If no movies found, send a reply to the requester
+                await message.reply("🔺 Sorry for the inconvenience, we don't have your requested movie. 🔻", disable_web_page_preview=True)
+                return
+
+            # Send possible movie suggestions if found
             buttons = []
             for movie in movies:
                 buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
