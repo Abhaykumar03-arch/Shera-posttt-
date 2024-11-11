@@ -71,7 +71,8 @@ async def search(bot, message):
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔁 Forward this to Admin", callback_data="forward_to_admin")]
             ])
-            await send_message_in_chunks(bot, message.chat.id, head + results + "\n\n", reply_markup=keyboard)
+            # Reply to the user with the message: "Hey buddy, I found this result for our request!"
+            await send_message_in_chunks(bot, message.chat.id, head + "Hey buddy, I have found this result for our request! 👇\n\n" + results + "\n\n", reply_markup=keyboard)
 
     except Exception as e:
         print(f"Error in search function: {e}")
@@ -131,9 +132,9 @@ async def recheck(bot, update):
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
-            # If no results found after recheck, return a custom message and offer a request to admin
+            # If no results found after recheck, return a custom message
             return await update.message.edit(
-                "🔺 Sorry, I think we don't have that post regarding your request. 🔻",
+                "🔺 Sorry for the inconvenience, we don't have your requested movie. 🔻",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
