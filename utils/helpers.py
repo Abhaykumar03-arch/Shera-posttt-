@@ -20,13 +20,21 @@ dlt_col  = db["Auto-Delete"]
 ia = Cinemagoer()
 
 async def add_group(group_id, group_name, user_name, user_id, channels, f_sub, verified):
-    data = {"_id": group_id, "name":group_name, 
-            "user_id":user_id, "user_name":user_name,
-            "channels":channels, "f_sub":f_sub, "verified":verified}
+    data = {
+        "_id": group_id, 
+        "name": group_name, 
+        "user_id": user_id, 
+        "user_name": user_name,
+        "channels": channels, 
+        "f_sub": f_sub, 
+        "verified": verified
+    }
     try:
-       await grp_col.insert_one(data)
+        await grp_col.insert_one(data)
     except DuplicateKeyError:
-       pass
+        pass
+    except Exception as e:
+        logging.error(f"Error adding group {group_id}: {str(e)}")
 
 async def get_group(id):
     data = {'_id': id}
