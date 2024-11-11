@@ -7,15 +7,17 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 
-async def send_message_in_chunks(client, chat_id, text):
+async def send_message_in_chunks(client, chat_id, text, reply_to_message=None):
     """
     Send long messages in chunks, if the message length exceeds the Telegram limit.
+    Reply directly to the user if provided.
     """
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
         msg = await client.send_message(
             chat_id=chat_id,
             text=text[i:i + max_length],
+            reply_to_message_id=reply_to_message.message_id if reply_to_message else None,  # Reply to the requester's message
             disable_web_page_preview=True  # Disable web page preview
         )
         asyncio.create_task(delete_after_delay(msg, 1800))
@@ -38,6 +40,7 @@ async def delete_after_delay(message: Message, delay: int):
 async def search(bot, message: Message):
     """
     Handle search queries in the group chat and return results from a set of channels.
+    Reply directly to the user with their chat ID in the results.
     """
     vj = database.find_one({"chat_id": ADMIN})
     if vj is None:
@@ -86,8 +89,8 @@ async def search(bot, message: Message):
                 disable_web_page_preview=True  # Disable image preview
             )
         else:
-            # Send the results with no web preview
-            await send_message_in_chunks(bot, message.chat.id, head + results)
+            # Send the results with no web preview and reply to the user with their request results
+            await send_message_in_chunks(bot, message.chat.id, head + results, reply_to_message=message)
     except Exception as e:
         # Log the exception for troubleshooting
         print(f"Error during search: {e}")
@@ -98,6 +101,7 @@ async def search(bot, message: Message):
 async def recheck(bot, update):
     """
     Handle recheck callback when the user clicks a movie link to search again.
+    Reply to the user with their request result.
     """
     vj = database.find_one({"chat_id": ADMIN})
     if vj is None:
@@ -139,7 +143,8 @@ async def recheck(bot, update):
                 disable_web_page_preview=True  # Disable image preview
             )
         
-        await send_message_in_chunks(bot, update.message.chat.id, head + results)
+        # Send the results and reply to the user with their chat ID in the message
+        await send_message_in_chunks(bot, update.message.chat.id, head + results, reply_to_message=update.message)
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
 
