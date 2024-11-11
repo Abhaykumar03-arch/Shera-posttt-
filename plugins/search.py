@@ -7,10 +7,10 @@ from utils import *
 from plugins.generate import database
 
 # Utility to send message in chunks
-async def send_message_in_chunks(client, chat_id, text):
+async def send_message_in_chunks(client, chat_id, text, reply_markup=None):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True, reply_markup=reply_markup)
         asyncio.create_task(delete_after_delay(msg, 1800))
 
 # Utility to delete messages after a delay
@@ -72,6 +72,7 @@ async def search(bot, message):
                 [InlineKeyboardButton("🔁 Forward this to Admin", callback_data="forward_to_admin")]
             ])
             await send_message_in_chunks(bot, message.chat.id, head + results + "\n\n", reply_markup=keyboard)
+
     except Exception as e:
         print(f"Error in search function: {e}")
         pass
@@ -130,8 +131,9 @@ async def recheck(bot, update):
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
+            # If no results found after recheck, return a custom message and offer a request to admin
             return await update.message.edit(
-                "🔺 Still no results found! Please Request To Group Admin 🔻",
+                "🔺 Sorry, I think we don't have that post regarding your request. 🔻",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
