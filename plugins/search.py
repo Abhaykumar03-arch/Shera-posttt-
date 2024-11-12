@@ -49,7 +49,7 @@ async def search(bot, message):
         return  # Ignore commands
 
     query = message.text
-    head = f"<u>⭕ Here are the results, 👇</u>"
+    head = f"<u>⭕ Here are the results, 👇</u>n/n"
     results = ""
 
     try:
