@@ -59,7 +59,7 @@ async def search(bot, message):
 
         # If results are found, reply to the user
         if results:
-            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
+            results = f"<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
             await send_message_in_chunks(bot, message.chat.id, results, reply_to_message_id=message.message_id)
         else:
             await bot.send_message(
@@ -71,7 +71,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error searching messages: {e}")
-        await message.reply("May be spelling mistake or not available in database. Please try again later.")
+        await message.reply("There might be a spelling mistake or it's not available in the database. Please try again later.")
 
         # If no results found, search IMDB
         movies = await search_imdb(query)
