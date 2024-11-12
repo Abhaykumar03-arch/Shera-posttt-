@@ -79,7 +79,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error in search function: {e}")
-        pass
+        await message.reply("Something went wrong. Please try again later.")
 
 # Recheck handler: Responds when user clicks "recheck" for an incorrect result
 @Client.on_callback_query(filters.regex(r"^recheck"))
