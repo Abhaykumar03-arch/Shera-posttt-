@@ -6,24 +6,22 @@ from plugins.generate import database
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-async def send_message_in_chunks(client, chat_id, text, reply_to_message_id=None):
+# Function to send long messages in chunks
+async def send_message_in_chunks(client, chat_id, text):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(
-            chat_id=chat_id,
-            text=text[i:i + max_length],
-            disable_web_page_preview=True,
-            reply_to_message_id=reply_to_message_id  # Ensure it replies to the original message
-        )
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
         asyncio.create_task(delete_after_delay(msg, 1800))
 
+# Function to delete a message after a certain delay
 async def delete_after_delay(message: Message, delay):
     await asyncio.sleep(delay)
     try:
         await message.delete()
-    except Exception as e:
-        print(f"Error deleting message: {e}")
+    except:
+        pass
 
+# Search handler: Responds to messages in the group that are not commands
 @Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
 async def search(bot, message):
     vj = database.find_one({"chat_id": ADMIN})
@@ -33,67 +31,67 @@ async def search(bot, message):
     User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
 
-    # Check if the user has subscribed to necessary channels
     f_sub = await force_sub(bot, message)
-    if not f_sub:
+    if f_sub is False:
         return
 
     channels = (await get_group(message.chat.id))["channels"]
     if not channels:
-        return await message.reply("**No channels found to search.**")
+        return
 
     if message.text.startswith("/"):
-        return  # Ignore commands
+        return
 
     query = message.text
     head = f"<u>⭕ Here are the results for {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
     results = ""
 
     try:
+        # If the user is replying to a message, store the reply_to_message
+        reply_message = message.reply_to_message if message.reply_to_message else None
+
+        # Search in channels
         for channel in channels:
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue  # Avoid duplicate results
+                    continue
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
-        # If results are found, reply to the user
-        if results:
-            results = f"<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
-            await send_message_in_chunks(bot, message.chat.id, results, reply_to_message_id=message.message_id)
-        else:
-            await bot.send_message(
-                chat_id=message.chat.id,
-                text=f"<b>No results found for your query.</b>\n\n<i>Quoted from:</i> {message.text}",
-                reply_to_message_id=message.message_id,  # Quote the original message
-                parse_mode="HTML"
+        if not results:
+            # No results found in the channels, search IMDB
+            movies = await search_imdb(query)
+            buttons = []
+            for movie in movies:
+                buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
+            msg = await message.reply_photo(
+                photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
+                caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
+                reply_markup=InlineKeyboardMarkup(buttons),
+                disable_web_page_preview=True
             )
+        else:
+            # Send results as a reply to the original message (if any)
+            if reply_message:
+                await reply_message.reply_text(head + results)
+            else:
+                await send_message_in_chunks(bot, message.chat.id, head + results)
 
     except Exception as e:
-        print(f"Error searching messages: {e}")
-        await message.reply("There might be a spelling mistake or it's not available in the database. Please try again later.")
+        print(f"Error in search function: {e}")
+        pass
 
-        # If no results found, search IMDB
-        movies = await search_imdb(query)
-        buttons = [[InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")] for movie in movies]
-        msg = await message.reply_photo(
-            photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
-            caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
-            reply_markup=InlineKeyboardMarkup(buttons),
-            disable_web_page_preview=False,
-            reply_to_message_id=message.message_id  # Reply to the original message
-        )
-
+# Recheck handler: Responds when user clicks "recheck" for an incorrect result
 @Client.on_callback_query(filters.regex(r"^recheck"))
 async def recheck(bot, update):
     vj = database.find_one({"chat_id": ADMIN})
+    User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     if vj is None:
         return await update.message.edit("**Contact Admin Then Say To Login In Bot.**")
 
-    User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
-
     clicked = update.from_user.id
+
     try:
         typed = update.message.reply_to_message.from_user.id
     except AttributeError:
@@ -110,11 +108,15 @@ async def recheck(bot, update):
     results = ""
 
     try:
+        # If the user is replying to a message, store the reply_to_message
+        reply_message = update.message.reply_to_message if update.message.reply_to_message else None
+
+        # Search in channels
         for channel in channels:
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue  # Avoid duplicates
+                    continue
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
@@ -123,14 +125,20 @@ async def recheck(bot, update):
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
-        await send_message_in_chunks(bot, update.message.chat.id, head + results, reply_to_message_id=update.message.message_id)
+        # Send results as a reply to the original message (if any)
+        if reply_message:
+            await reply_message.reply_text(head + results)
+        else:
+            await send_message_in_chunks(bot, update.message.chat.id, head + results)
 
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
 
+# Request handler: Sends a request to the admin if no results are found
 @Client.on_callback_query(filters.regex(r"^request"))
 async def request(bot, update):
     clicked = update.from_user.id
+
     try:
         typed = update.message.reply_to_message.from_user.id
     except AttributeError:
