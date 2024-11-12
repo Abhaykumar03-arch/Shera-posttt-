@@ -56,16 +56,7 @@ async def search(bot, message):
         if results:
             # Quote the original message and include the user's ID
             quoted_msg = f"<i>Quoted from:</i> {message.text}\n\n"  # Add the quoted message text
-            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
-            
-            # Send the reply to the user, quoting their message
-            await bot.send_message(
-                chat_id=message.chat.id,
-                text=results,
-                reply_to_message_id=message.message_id,  # Quote the original message
-                parse_mode="HTML",
-                disable_web_page_preview=True
-            )
+            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}
 
         else:
             # If no results found, inform the user
