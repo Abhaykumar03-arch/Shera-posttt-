@@ -52,6 +52,25 @@ async def search(bot, message):
                     continue
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
+        # Reply with the search results
+        if results:
+            # Quote the original requester's message and include their user ID in the reply
+            quoted_msg = f"<i>Quoted from:</i> {message.text}\n\n"  # Add the quoted message text
+            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} ({message.from_user.id}):</I></b>\n\n{head}{results}"
+            
+            # Send the reply back to the requester
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=results,
+                reply_to_message_id=message.message_id,  # Quote the original message
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+
+    except Exception as e:
+        print(f"Error searching messages: {e}")
+        await message.reply("Sorry, an error occurred while processing your request.")
+
         if not results:
             # No results found in the channels, search IMDB
             movies = await search_imdb(query)
@@ -62,7 +81,7 @@ async def search(bot, message):
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
                 reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True
+                disable_web_page_preview=False 
             )
         else:
             await send_message_in_chunks(bot, message.chat.id, head + results)
