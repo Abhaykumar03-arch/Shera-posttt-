@@ -52,13 +52,13 @@ async def search(bot, message):
                     continue
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
-        # Reply with the search results
+        # If results are found, reply to the user
         if results:
-            # Quote the original requester's message and include their user ID in the reply
+            # Quote the original message and include the user's ID
             quoted_msg = f"<i>Quoted from:</i> {message.text}\n\n"  # Add the quoted message text
-            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} ({message.from_user.id}):</I></b>\n\n{head}{results}"
+            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
             
-            # Send the reply back to the requester
+            # Send the reply to the user, quoting their message
             await bot.send_message(
                 chat_id=message.chat.id,
                 text=results,
@@ -67,9 +67,19 @@ async def search(bot, message):
                 disable_web_page_preview=True
             )
 
+        else:
+            # If no results found, inform the user
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=f"<b>No results found for your query.</b>\n\n<i>Quoted from:</i> {message.text}",
+                reply_to_message_id=message.message_id,  # Quote the original message
+                parse_mode="HTML"
+            )
+
     except Exception as e:
         print(f"Error searching messages: {e}")
         await message.reply("Sorry, an error occurred while processing your request.")
+
 
         if not results:
             # No results found in the channels, search IMDB
