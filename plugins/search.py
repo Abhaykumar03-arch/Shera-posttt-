@@ -41,7 +41,7 @@ async def search(bot, message):
         return
 
     # Get the list of channels where messages are searched
-    channels = (await get_group(message.chat.id))["channels"]
+    channels = (await get_group(message.message.id))["channels"]
     if not channels:
         return
 
