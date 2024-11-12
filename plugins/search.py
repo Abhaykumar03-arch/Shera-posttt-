@@ -16,8 +16,8 @@ async def delete_after_delay(message: Message, delay):
     await asyncio.sleep(delay)
     try:
         await message.delete()
-    except:
-        pass
+    except Exception as e:
+        print(f"Error deleting message: {e}")
 
 @Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
 async def search(bot, message):
@@ -28,6 +28,7 @@ async def search(bot, message):
     User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
 
+    # Check if the user has subscribed to necessary channels
     f_sub = await force_sub(bot, message)
     if f_sub is False:
         return
@@ -61,22 +62,23 @@ async def search(bot, message):
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
                 reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True  # Disable the web preview for the image link
+                disable_web_page_preview=True
             )
         else:
             await send_message_in_chunks(bot, message.chat.id, head + results)
     except Exception as e:
         print(f"Error in search function: {e}")
-        pass
+        await message.reply(f"❌ Error occurred: {e}")
 
 @Client.on_callback_query(filters.regex(r"^recheck"))
 async def recheck(bot, update):
     vj = database.find_one({"chat_id": ADMIN})
-    User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     if vj is None:
         return await update.message.edit("**Contact Admin Then Say To Login In Bot.**")
 
+    User = Client("post_search", session_string=vj['session'], api_hash=API_HASH, api_id=API_ID)
     await User.connect()
+
     clicked = update.from_user.id
 
     try:
