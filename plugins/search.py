@@ -68,7 +68,7 @@ async def search(bot, message):
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
                 reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True
+                disable_web_page_preview=False 
             )
         else:
             # Send results as a reply to the original message (if any)
@@ -79,7 +79,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error in search function: {e}")
-        await message.reply("Something went wrong. Please try again later.")
+        await message.reply("Might be spelling mistake search on google and type the correct spelling. Please try again later.")
 
 # Recheck handler: Responds when user clicks "recheck" for an incorrect result
 @Client.on_callback_query(filters.regex(r"^recheck"))
