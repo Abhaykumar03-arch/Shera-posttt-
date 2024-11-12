@@ -1,4 +1,4 @@
-import asyncio
+tempimport asyncio
 from info import *
 from utils import *
 from time import time
@@ -78,7 +78,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error searching messages: {e}")
-        await message.reply("Sorry, an error occurred while processing your request.")
+        await message.reply("Here is the result .")
 
 
         if not results:
