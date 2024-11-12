@@ -6,10 +6,15 @@ from plugins.generate import database
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-async def send_message_in_chunks(client, chat_id, text):
+async def send_message_in_chunks(client, chat_id, text, reply_to_message_id=None):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i + max_length], disable_web_page_preview=True)
+        msg = await client.send_message(
+            chat_id=chat_id,
+            text=text[i:i + max_length],
+            disable_web_page_preview=True,
+            reply_to_message_id=reply_to_message_id  # Ensure it replies to the original message
+        )
         asyncio.create_task(delete_after_delay(msg, 1800))
 
 async def delete_after_delay(message: Message, delay):
@@ -55,7 +60,7 @@ async def search(bot, message):
         # If results are found, reply to the user
         if results:
             results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
-            await send_message_in_chunks(bot, message.chat.id, results)
+            await send_message_in_chunks(bot, message.chat.id, results, reply_to_message_id=message.message_id)
         else:
             await bot.send_message(
                 chat_id=message.chat.id,
@@ -66,7 +71,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error searching messages: {e}")
-        await message.reply("May be spelling mistake or not available in database . Please try again later.")
+        await message.reply("May be spelling mistake or not available in database. Please try again later.")
 
         # If no results found, search IMDB
         movies = await search_imdb(query)
@@ -75,7 +80,8 @@ async def search(bot, message):
             photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
             caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
             reply_markup=InlineKeyboardMarkup(buttons),
-            disable_web_page_preview=False
+            disable_web_page_preview=False,
+            reply_to_message_id=message.message_id  # Reply to the original message
         )
 
 @Client.on_callback_query(filters.regex(r"^recheck"))
@@ -117,7 +123,7 @@ async def recheck(bot, update):
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
-        await send_message_in_chunks(bot, update.message.chat.id, head + results)
+        await send_message_in_chunks(bot, update.message.chat.id, head + results, reply_to_message_id=update.message.message_id)
 
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
