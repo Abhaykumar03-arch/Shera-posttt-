@@ -1,4 +1,4 @@
-tempimport asyncio
+import asyncio
 from info import *
 from utils import *
 from time import time
@@ -9,7 +9,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 async def send_message_in_chunks(client, chat_id, text):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i+max_length], disable_web_page_preview=True)
+        msg = await client.send_message(chat_id=chat_id, text=text[i:i + max_length], disable_web_page_preview=True)
         asyncio.create_task(delete_after_delay(msg, 1800))
 
 async def delete_after_delay(message: Message, delay):
@@ -30,15 +30,15 @@ async def search(bot, message):
 
     # Check if the user has subscribed to necessary channels
     f_sub = await force_sub(bot, message)
-    if f_sub is False:
+    if not f_sub:
         return
 
     channels = (await get_group(message.chat.id))["channels"]
     if not channels:
-        return
+        return await message.reply("**No channels found to search.**")
 
     if message.text.startswith("/"):
-        return
+        return  # Ignore commands
 
     query = message.text
     head = f"<u>⭕ Here are the results for {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
@@ -49,17 +49,15 @@ async def search(bot, message):
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue
+                    continue  # Avoid duplicate results
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
         # If results are found, reply to the user
         if results:
-            # Quote the original message and include the user's ID
-            quoted_msg = f"<i>Quoted from:</i> {message.text}\n\n"  # Add the quoted message text
-            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}
-
+            quoted_msg = f"<i>Quoted from:</i> {message.text}\n\n"
+            results = f"{quoted_msg}<b><I>Search Results for {message.from_user.mention} (ID: {message.from_user.id}):</I></b>\n\n{head}{results}"
+            await send_message_in_chunks(bot, message.chat.id, results)
         else:
-            # If no results found, inform the user
             await bot.send_message(
                 chat_id=message.chat.id,
                 text=f"<b>No results found for your query.</b>\n\n<i>Quoted from:</i> {message.text}",
@@ -69,26 +67,17 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error searching messages: {e}")
-        await message.reply("Here is the result .")
+        await message.reply("Error occurred while searching. Please try again later.")
 
-
-        if not results:
-            # No results found in the channels, search IMDB
-            movies = await search_imdb(query)
-            buttons = []
-            for movie in movies:
-                buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
-            msg = await message.reply_photo(
-                photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
-                caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
-                reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=False 
-            )
-        else:
-            await send_message_in_chunks(bot, message.chat.id, head + results)
-    except Exception as e:
-        print(f"Error in search function: {e}")
-        await message.reply(f"❌ Error occurred: {e}")
+        # If no results found, search IMDB
+        movies = await search_imdb(query)
+        buttons = [[InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")] for movie in movies]
+        msg = await message.reply_photo(
+            photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
+            caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
+            reply_markup=InlineKeyboardMarkup(buttons),
+            disable_web_page_preview=False
+        )
 
 @Client.on_callback_query(filters.regex(r"^recheck"))
 async def recheck(bot, update):
@@ -100,7 +89,6 @@ async def recheck(bot, update):
     await User.connect()
 
     clicked = update.from_user.id
-
     try:
         typed = update.message.reply_to_message.from_user.id
     except AttributeError:
@@ -121,7 +109,7 @@ async def recheck(bot, update):
             async for msg in User.search_messages(chat_id=channel, query=query):
                 name = (msg.text or msg.caption).split("\n")[0]
                 if name in results:
-                    continue
+                    continue  # Avoid duplicates
                 results += f"<b><I>♻️🍿 {name}</I></b>\n\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
@@ -138,7 +126,6 @@ async def recheck(bot, update):
 @Client.on_callback_query(filters.regex(r"^request"))
 async def request(bot, update):
     clicked = update.from_user.id
-
     try:
         typed = update.message.reply_to_message.from_user.id
     except AttributeError:
