@@ -8,10 +8,14 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 
 # Function to send message in chunks
-async def send_message_in_chunks(client, chat_id, text):
+async def send_message_in_chunks(client, chat_id, text, reply_to_message_id=None):
     max_length = 4096  # Maximum length of a message
     for i in range(0, len(text), max_length):
-        msg = await client.send_message(chat_id=chat_id, text=text[i:i + max_length])
+        msg = await client.send_message(
+            chat_id=chat_id, 
+            text=text[i:i + max_length], 
+            reply_to_message_id=reply_to_message_id
+        )
         # Schedule message deletion after delay (30 minutes in this case)
         asyncio.create_task(delete_after_delay(msg, 1800))
 
@@ -49,7 +53,7 @@ async def search(bot, message):
         return  # Ignore commands
 
     query = message.text
-    head = f"<u>⭕ Here are the results, 👇</u>n/n"
+    head = f"<u>⭕ Here are the results, 👇</u>\n\n"
     results = ""
 
     try:
@@ -68,11 +72,12 @@ async def search(bot, message):
             msg = await message.reply_photo(
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
-                reply_markup=InlineKeyboardMarkup([[button] for button in buttons])
+                reply_markup=InlineKeyboardMarkup([[button] for button in buttons]),
+                reply_to_message_id=message.message_id  # Reply to the original message
             )
         else:
             # If results found, send them in chunks
-            await send_message_in_chunks(bot, message.chat.id, head + results)
+            await send_message_in_chunks(bot, message.chat.id, head + results, reply_to_message_id=message.message_id)
 
     except Exception as e:
         print(f"Error: {e}")
@@ -119,7 +124,7 @@ async def recheck(bot, update):
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{id}")]])
             )
 
-        await send_message_in_chunks(bot, update.message.chat.id, head + results)
+        await send_message_in_chunks(bot, update.message.chat.id, head + results, reply_to_message_id=update.message.reply_to_message.message_id)
 
     except Exception as e:
         await update.message.edit(f"❌ Error: `{e}`")
