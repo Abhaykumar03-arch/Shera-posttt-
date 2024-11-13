@@ -1,6 +1,4 @@
 import asyncio
-from pyspellchecker import SpellChecker
-from fuzzywuzzy import fuzz
 from imdb import IMDb
 from info import *
 from utils import *
@@ -9,7 +7,6 @@ from plugins.generate import database
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-spell = SpellChecker()
 ia = IMDb()
 
 # Function to send long messages in chunks
@@ -27,20 +24,10 @@ async def delete_after_delay(message: Message, delay):
     except:
         pass
 
-# Function to correct spelling mistakes
-def correct_spelling(query):
-    # Use pyspellchecker to find the best possible correction
-    words = query.split()
-    corrected_query = ' '.join([spell.correction(word) if word not in spell else word for word in words])
-    return corrected_query
-
-# IMDb Search
+# IMDb Search (no spelling correction)
 async def search_imdb(query):
-    # Correct spelling before searching
-    corrected_query = correct_spelling(query)
-    
-    # Search using IMDb API
-    search_results = ia.search_movie(corrected_query)
+    # Search directly using IMDb API
+    search_results = ia.search_movie(query)
     movies = []
     for result in search_results[:5]:  # Get top 5 search results
         movie = ia.get_movie(result['movieID'])
