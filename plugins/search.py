@@ -60,7 +60,7 @@ async def search(bot, message):
         return
 
     query = message.text
-    head = f"<u>⭕ Here are the results for your request 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
+    head = f"<u>⭕ Here are the results for {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
     results = ""
 
     try:
