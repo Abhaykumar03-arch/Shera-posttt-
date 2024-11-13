@@ -68,7 +68,7 @@ async def search(bot, message):
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
                 reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=False 
+                disable_web_page_preview=False
             )
         else:
             # Send results as a reply to the original message (if any)
@@ -76,6 +76,11 @@ async def search(bot, message):
                 await reply_message.reply_text(head + results)
             else:
                 await send_message_in_chunks(bot, message.chat.id, head + results)
+
+    except Exception as e:
+        print(f"Error in search function: {e}")
+        await message.reply("❗Might be spelling mistake search on google and type the correct spelling. Please try again later. \n❗हो सकता है स्पेलिंग में गलती हो, गूगल पर सर्च करें और सही स्पेलिंग टाइप करें। कृपया बाद में पुन: प्रयास करें")
+
 
     except Exception as e:
         print(f"Error in search function: {e}")
