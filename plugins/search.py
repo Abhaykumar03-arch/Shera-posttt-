@@ -79,7 +79,7 @@ async def search(bot, message):
 
     except Exception as e:
         print(f"Error in search function: {e}")
-        await message.reply("❗Might be spelling mistake search on google and type the correct spelling. Please try again later. ❗हो सकता है स्पेलिंग में गलती हो, गूगल पर सर्च करें और सही स्पेलिंग टाइप करें। कृपया बाद में पुन: प्रयास करें")
+        await message.reply("❗Might be spelling mistake search on google and type the correct spelling. Please try again later. \n❗हो सकता है स्पेलिंग में गलती हो, गूगल पर सर्च करें और सही स्पेलिंग टाइप करें। कृपया बाद में पुन: प्रयास करें")
 
 # Recheck handler: Responds when user clicks "recheck" for an incorrect result
 @Client.on_callback_query(filters.regex(r"^recheck"))
