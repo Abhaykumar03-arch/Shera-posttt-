@@ -75,12 +75,22 @@ async def search(bot, message):
                     continue
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
-        if not results:
-            # No results found in the channels, search IMDb
+        if not results:  # No results found in channels
+            # Search IMDb for the query
             movies = await search_imdb(query)
+
+            if not movies:  # No IMDb results found
+                # If no IMDb results, inform the user and offer a request to admin
+                return await message.reply(
+                    "🔺 No results found on IMDb either.\n\nPlease request the admin to add the content.",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎯 Request To Admin 🎯", callback_data=f"request_{query}")]])
+                )
+
+            # If IMDb results found, show options to the user
             buttons = []
             for movie in movies:
                 buttons.append([InlineKeyboardButton(movie['title'], callback_data=f"recheck_{movie['id']}")])
+            
             msg = await message.reply_photo(
                 photo="https://graph.org/file/c361a803c7b70fc50d435.jpg",
                 caption="<b><I>🔻 I Couldn't find anything related to Your Query😕.\n🔺 Did you mean any of these?</I></b>",
@@ -97,6 +107,7 @@ async def search(bot, message):
     except Exception as e:
         print(f"Error in search function: {e}")
         await message.reply("❗Might be spelling mistake search on google and type the correct spelling. Please try again later. \n\n❗हो सकता है स्पेलिंग में गलती हो, गूगल पर सर्च करें और सही स्पेलिंग टाइप करें। कृपया बाद में पुन: प्रयास करें")
+)
 
 # Recheck handler: Responds when user clicks "recheck" for an incorrect result
 @Client.on_callback_query(filters.regex(r"^recheck"))
