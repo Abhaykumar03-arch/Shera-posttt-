@@ -1,10 +1,16 @@
 import asyncio
+from pyspellchecker import SpellChecker
+from fuzzywuzzy import fuzz
+from imdb import IMDb
 from info import *
 from utils import *
 from time import time
 from plugins.generate import database
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+
+spell = SpellChecker()
+ia = IMDb()
 
 # Function to send long messages in chunks
 async def send_message_in_chunks(client, chat_id, text):
@@ -21,7 +27,31 @@ async def delete_after_delay(message: Message, delay):
     except:
         pass
 
-# Search handler: Responds to messages in the group that are not commands
+# Function to correct spelling mistakes
+def correct_spelling(query):
+    # Use pyspellchecker to find the best possible correction
+    words = query.split()
+    corrected_query = ' '.join([spell.correction(word) if word not in spell else word for word in words])
+    return corrected_query
+
+# IMDb Search
+async def search_imdb(query):
+    # Correct spelling before searching
+    corrected_query = correct_spelling(query)
+    
+    # Search using IMDb API
+    search_results = ia.search_movie(corrected_query)
+    movies = []
+    for result in search_results[:5]:  # Get top 5 search results
+        movie = ia.get_movie(result['movieID'])
+        title = movie.get('title', 'Unknown')
+        year = movie.get('year', 'Unknown')
+        movie_url = f"https://www.imdb.com/title/tt{movie.movieID}"
+        movies.append({'title': f"{title} ({year})", 'id': movie.movieID, 'url': movie_url})
+    
+    return movies
+
+# Search handler
 @Client.on_message(filters.text & filters.group & filters.incoming & ~filters.command(["verify", "connect", "id"]))
 async def search(bot, message):
     vj = database.find_one({"chat_id": ADMIN})
@@ -43,7 +73,7 @@ async def search(bot, message):
         return
 
     query = message.text
-    head = f"<u>⭕ Here are the results for {message.from_user.mention} 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
+    head = f"<u>⭕ Here are the results for your request 👇\n\n💢 Powered By </u> <b><I>@RMCBACKUP ❗</I></b>\n\n"
     results = ""
 
     try:
@@ -59,7 +89,7 @@ async def search(bot, message):
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
 
         if not results:
-            # No results found in the channels, search IMDB
+            # No results found in the channels, search IMDb
             movies = await search_imdb(query)
             buttons = []
             for movie in movies:
