@@ -76,8 +76,6 @@ async def search(bot, message):
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
               
             if reply_message:
-                await reply_message.reply_text(head + results)
-            else:
                 await send_message_in_chunks(bot, message.chat.id, head + results)
 
         if not results:  # No results found in channels
