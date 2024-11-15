@@ -67,6 +67,10 @@ async def search(bot, message):
         # If the user is replying to a message, store the reply_to_message
         reply_message = message.reply_to_message if message.reply_to_message else None
 
+        # Notify the user that the reply is linked to their message
+        if reply_message:
+            results += f"<i>This search is related to your message:</i>\n<b>{reply_message.text}</b>\n\n"
+
         # Search in channels
         for channel in channels:
             async for msg in User.search_messages(chat_id=channel, query=query):
@@ -76,7 +80,19 @@ async def search(bot, message):
                 results += f"<b><I>♻️ {name}\n🔗 {msg.link}</I></b>\n\n"
               
             if reply_message:
-                await send_message_in_chunks(bot, message.chat.id, head + results)
+                # Append an additional message or information to indicate the query is in response to their message
+                results += f"<i>Search results for your query:</i>\n\n"
+
+        # If no results, inform the user
+        if not results:
+            results = "<i>No results found for your search query.</i>"
+
+        # Send the results, with the header and any replies
+        await send_message_in_chunks(bot, message.chat.id, head + results)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        await message.reply("Sorry, there was an error while processing your request.")
 
         if not results:  # No results found in channels
             # Search IMDb for the query
